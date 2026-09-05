@@ -5,6 +5,7 @@ on:
     paths:
       - 'appsacco-build/**'
       - '.github/workflows/appsacco-apk.yml'
+  pull_request:
   workflow_dispatch:
 
 jobs:
