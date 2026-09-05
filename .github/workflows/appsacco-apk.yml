@@ -1,0 +1,73 @@
+name: Build APP SACCO APK
+
+on:
+  push:
+    paths:
+      - 'appsacco-build/**'
+      - '.github/workflows/appsacco-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Reconstruct APP SACCO source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cat appsacco-build/source.b64.* | base64 --decode > /tmp/appsacco_source.zip
+          rm -rf /tmp/appsacco_src /tmp/appsacco_app
+          mkdir -p /tmp/appsacco_src
+          unzip -q /tmp/appsacco_source.zip -d /tmp/appsacco_src
+          flutter create --platforms=android --org co.ellnoo --project-name app_sacco_mobile /tmp/appsacco_app
+          rm -rf /tmp/appsacco_app/lib
+          cp -R /tmp/appsacco_src/app_source/lib /tmp/appsacco_app/lib
+          cp /tmp/appsacco_src/app_source/pubspec.yaml /tmp/appsacco_app/pubspec.yaml
+          cp /tmp/appsacco_src/app_source/analysis_options.yaml /tmp/appsacco_app/analysis_options.yaml
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('/tmp/appsacco_app/android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+          marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+          if 'android.permission.INTERNET' not in s:
+              s = s.replace(marker, marker + '\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />')
+          s = s.replace('android:label="app_sacco_mobile"', 'android:label="APP SACCO"')
+          p.write_text(s)
+          PY
+          grep -n "appsacco-api" /tmp/appsacco_app/lib/core/app_config.dart
+
+      - name: Get packages
+        working-directory: /tmp/appsacco_app
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: /tmp/appsacco_app
+        run: flutter analyze
+        continue-on-error: true
+
+      - name: Build release APK
+        working-directory: /tmp/appsacco_app
+        run: flutter build apk --release
+
+      - name: Prepare APK
+        run: |
+          cp /tmp/appsacco_app/build/app/outputs/flutter-apk/app-release.apk APP_SACCO_v1.0.1.apk
+          ls -lh APP_SACCO_v1.0.1.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: APP_SACCO_APK
+          path: APP_SACCO_v1.0.1.apk
+          retention-days: 7
