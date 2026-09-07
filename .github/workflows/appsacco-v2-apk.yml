@@ -32,7 +32,7 @@ jobs:
           cp appsacco-v2/analysis_options.yaml /tmp/app_sacco_v2/analysis_options.yaml
           cp appsacco-v2/main.dart /tmp/app_sacco_v2/lib/main.dart
           mkdir -p /tmp/app_sacco_v2/assets/images
-          base64 --decode appsacco-v2/logo.b64 > /tmp/app_sacco_v2/assets/images/app_sacco_logo.png
+          cat appsacco-v2/logo.b64.* | base64 --decode > /tmp/app_sacco_v2/assets/images/app_sacco_logo.png
 
           python3 - <<'PY'
           from pathlib import Path
