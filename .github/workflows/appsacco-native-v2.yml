@@ -28,8 +28,9 @@ jobs:
           rm -rf /tmp/appsacco_native
           flutter create --platforms=android --org co.ellnoo --project-name app_sacco_mobile /tmp/appsacco_native
 
-          # Restore the real native Dart source (not a WebView shell).
-          base64 -d appsacco-native-v2/main.dart.gz.b64 | gzip -d > /tmp/appsacco_native/lib/main.dart
+          # Restore the native Dart source from small verified chunks.
+          cat appsacco-native-v2/main.part00.b64 appsacco-native-v2/main.part01.b64 appsacco-native-v2/main.part02.b64 appsacco-native-v2/main.part03.b64 > /tmp/main.dart.gz.b64
+          base64 -d /tmp/main.dart.gz.b64 | gzip -d > /tmp/appsacco_native/lib/main.dart
 
           cat > /tmp/appsacco_native/pubspec.yaml <<'EOF'
           name: app_sacco_mobile
