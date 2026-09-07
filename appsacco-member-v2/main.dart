@@ -9,6 +9,9 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 const _appGreen = Color(0xFF087B3B);
 const _appDarkGreen = Color(0xFF04582A);
 const _portalUrl = 'https://ellnoo.com/member-app';
+const _logoutUrl = 'https://ellnoo.com/member-app/native-logout';
+
+enum _AppAction { home, refresh, logout }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +46,6 @@ class AppSaccoApp extends StatelessWidget {
           surface: const Color(0xFFF7FBF8),
         ),
         scaffoldBackgroundColor: const Color(0xFFF7FBF8),
-        fontFamily: 'Roboto',
       ),
       home: const MemberPortalScreen(),
     );
@@ -63,6 +65,7 @@ class _MemberPortalScreenState extends State<MemberPortalScreen> {
   bool _initialPageFinished = false;
   bool _mainFrameError = false;
   String _errorText = '';
+  String _currentUrl = _portalUrl;
 
   @override
   void initState() {
@@ -81,6 +84,7 @@ class _MemberPortalScreenState extends State<MemberPortalScreen> {
           onPageStarted: (String url) {
             if (!mounted) return;
             setState(() {
+              _currentUrl = url;
               _mainFrameError = false;
               _errorText = '';
             });
@@ -88,6 +92,7 @@ class _MemberPortalScreenState extends State<MemberPortalScreen> {
           onPageFinished: (String url) async {
             if (!mounted) return;
             setState(() {
+              _currentUrl = url;
               _initialPageFinished = true;
               _progress = 100;
             });
@@ -131,10 +136,7 @@ class _MemberPortalScreenState extends State<MemberPortalScreen> {
       androidController.setMediaPlaybackRequiresUserGesture(false);
       androidController.setGeolocationPermissionsPromptCallbacks(
         onShowPrompt: (GeolocationPermissionsRequestParams request) async {
-          return const GeolocationPermissionsResponse(
-            allow: true,
-            retain: true,
-          );
+          return const GeolocationPermissionsResponse(allow: true, retain: true);
         },
       );
     }
@@ -155,25 +157,46 @@ class _MemberPortalScreenState extends State<MemberPortalScreen> {
           document.body.style.overscrollBehaviorY = 'contain';
         })();
       ''');
-    } catch (_) {
-      // Portal functionality must never depend on the cosmetic injection.
-    }
+    } catch (_) {}
   }
 
   Future<void> _openExternal(Uri uri) async {
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {
-      // If Android has no handler, leave the portal open rather than crashing.
-    }
+    } catch (_) {}
   }
 
+  Future<void> _goHome() => _controller.loadRequest(Uri.parse(_portalUrl));
+
   Future<void> _reload() async {
-    setState(() {
-      _mainFrameError = false;
-      _progress = 0;
-    });
+    if (mounted) {
+      setState(() {
+        _mainFrameError = false;
+        _progress = 0;
+      });
+    }
     await _controller.reload();
+  }
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('You will need to sign in again to access APP SACCO.'),
+        actions: <Widget>[
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _appGreen),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _controller.loadRequest(Uri.parse(_logoutUrl));
+    }
   }
 
   Future<bool> _handleBack() async {
@@ -184,8 +207,20 @@ class _MemberPortalScreenState extends State<MemberPortalScreen> {
     return true;
   }
 
+  Future<void> _handleAction(_AppAction action) async {
+    switch (action) {
+      case _AppAction.home:
+        await _goHome();
+      case _AppAction.refresh:
+        await _reload();
+      case _AppAction.logout:
+        await _logout();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isLogin = Uri.tryParse(_currentUrl)?.path.startsWith('/login') == true;
     return WillPopScope(
       onWillPop: _handleBack,
       child: Scaffold(
@@ -195,16 +230,9 @@ class _MemberPortalScreenState extends State<MemberPortalScreen> {
             children: <Widget>[
               Positioned.fill(child: WebViewWidget(controller: _controller)),
               if (_mainFrameError)
-                Positioned.fill(
-                  child: _OfflineView(
-                    details: _errorText,
-                    onRetry: _reload,
-                  ),
-                ),
+                Positioned.fill(child: _OfflineView(details: _errorText, onRetry: _reload)),
               if (!_initialPageFinished)
-                Positioned.fill(
-                  child: _LaunchOverlay(progress: _progress),
-                ),
+                Positioned.fill(child: _LaunchOverlay(progress: _progress)),
               if (_initialPageFinished && !_mainFrameError && _progress < 100)
                 Positioned(
                   top: MediaQuery.paddingOf(context).top,
@@ -217,6 +245,36 @@ class _MemberPortalScreenState extends State<MemberPortalScreen> {
                     backgroundColor: const Color(0xFFE4F3E9),
                   ),
                 ),
+              if (_initialPageFinished && !_mainFrameError && !isLogin)
+                Positioned(
+                  right: 14,
+                  bottom: 82 + MediaQuery.paddingOf(context).bottom,
+                  child: Material(
+                    elevation: 8,
+                    color: _appGreen,
+                    shape: const CircleBorder(),
+                    child: PopupMenuButton<_AppAction>(
+                      tooltip: 'APP SACCO menu',
+                      onSelected: _handleAction,
+                      icon: const Icon(Icons.more_horiz_rounded, color: Colors.white),
+                      itemBuilder: (context) => const <PopupMenuEntry<_AppAction>>[
+                        PopupMenuItem(
+                          value: _AppAction.home,
+                          child: ListTile(leading: Icon(Icons.home_rounded), title: Text('Home')),
+                        ),
+                        PopupMenuItem(
+                          value: _AppAction.refresh,
+                          child: ListTile(leading: Icon(Icons.refresh_rounded), title: Text('Refresh')),
+                        ),
+                        PopupMenuDivider(),
+                        PopupMenuItem(
+                          value: _AppAction.logout,
+                          child: ListTile(leading: Icon(Icons.logout_rounded), title: Text('Logout')),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -227,7 +285,6 @@ class _MemberPortalScreenState extends State<MemberPortalScreen> {
 
 class _LaunchOverlay extends StatelessWidget {
   const _LaunchOverlay({required this.progress});
-
   final int progress;
 
   @override
@@ -249,39 +306,15 @@ class _LaunchOverlay extends StatelessWidget {
                     shape: BoxShape.circle,
                     color: Colors.white,
                     boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: Colors.black.withOpacity(.10),
-                        blurRadius: 24,
-                        offset: const Offset(0, 10),
-                      ),
+                      BoxShadow(color: Colors.black.withOpacity(.10), blurRadius: 24, offset: const Offset(0, 10)),
                     ],
                   ),
-                  child: ClipOval(
-                    child: Image.asset(
-                      'assets/app_sacco_logo.png',
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                  child: ClipOval(child: Image.asset('assets/app_sacco_logo.png', fit: BoxFit.cover)),
                 ),
                 const SizedBox(height: 24),
-                const Text(
-                  'APP SACCO',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    color: _appDarkGreen,
-                    letterSpacing: .5,
-                  ),
-                ),
+                const Text('APP SACCO', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: _appDarkGreen)),
                 const SizedBox(height: 7),
-                Text(
-                  'Save Together, Grow Together',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: _appDarkGreen.withOpacity(.72),
-                  ),
-                ),
+                Text('Save Together, Grow Together', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _appDarkGreen.withOpacity(.72))),
                 const SizedBox(height: 34),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(999),
@@ -293,10 +326,7 @@ class _LaunchOverlay extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'Connecting securely to your SACCO…',
-                  style: TextStyle(fontSize: 12.5, color: Color(0xFF67816E)),
-                ),
+                const Text('Connecting securely to your SACCO…', style: TextStyle(fontSize: 12.5, color: Color(0xFF67816E))),
               ],
             ),
           ),
@@ -308,7 +338,6 @@ class _LaunchOverlay extends StatelessWidget {
 
 class _OfflineView extends StatelessWidget {
   const _OfflineView({required this.details, required this.onRetry});
-
   final String details;
   final Future<void> Function() onRetry;
 
@@ -325,39 +354,17 @@ class _OfflineView extends StatelessWidget {
               children: <Widget>[
                 Image.asset('assets/app_sacco_logo.png', width: 96, height: 96),
                 const SizedBox(height: 22),
-                const Text(
-                  'Unable to open APP SACCO',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: _appDarkGreen,
-                  ),
-                ),
+                const Text('Unable to open APP SACCO', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: _appDarkGreen)),
                 const SizedBox(height: 10),
-                const Text(
-                  'Check your internet connection and try again. Your account remains safe.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14.5, height: 1.4, color: Color(0xFF5D7163)),
-                ),
+                const Text('Check your internet connection and try again. Your account remains safe.', textAlign: TextAlign.center, style: TextStyle(fontSize: 14.5, height: 1.4, color: Color(0xFF5D7163))),
                 if (details.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 8),
-                  Text(
-                    details,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
+                  Text(details, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Colors.grey)),
                 ],
                 const SizedBox(height: 24),
                 FilledButton.icon(
                   onPressed: onRetry,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _appGreen,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  ),
+                  style: FilledButton.styleFrom(backgroundColor: _appGreen, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
                   icon: const Icon(Icons.refresh_rounded),
                   label: const Text('Try again'),
                 ),
