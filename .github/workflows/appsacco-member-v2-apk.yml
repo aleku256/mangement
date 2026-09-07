@@ -31,7 +31,10 @@ jobs:
           cp appsacco-member-v2/analysis_options.yaml /tmp/appsacco_member_v2/analysis_options.yaml
           cp appsacco-member-v2/main.dart /tmp/appsacco_member_v2/lib/main.dart
           mkdir -p /tmp/appsacco_member_v2/assets
-          base64 --decode appsacco-member-v2/logo.b64 > /tmp/appsacco_member_v2/assets/app_sacco_logo.png
+
+          # Use the same APP SACCO seal used by the live member portal.
+          curl -fL --retry 3 https://ellnoo.com/uploads/branding/app-sacco-logo.png -o /tmp/appsacco_member_v2/assets/app_sacco_logo.png \
+            || curl -fL --retry 3 https://ellnoo.com/uploads/branding/app-sacco-icon-64.png -o /tmp/appsacco_member_v2/assets/app_sacco_logo.png
 
           python3 - <<'PY'
           from pathlib import Path
@@ -46,7 +49,6 @@ jobs:
           p.write_text(s)
           PY
 
-          # Keep package support compatible with modern Android while allowing broad SACCO-device coverage.
           python3 - <<'PY'
           from pathlib import Path
           p = Path('/tmp/appsacco_member_v2/android/app/build.gradle.kts')
