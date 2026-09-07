@@ -33,7 +33,7 @@ jobs:
           cp appsacco-member-v2/analysis_options.yaml /tmp/appsacco_ios/analysis_options.yaml
           cp appsacco-ios-v1-1-1/main.dart /tmp/appsacco_ios/lib/main.dart
           mkdir -p /tmp/appsacco_ios/assets
-          base64 --decode appsacco-member-v2/logo.b64 > /tmp/appsacco_ios/assets/app_sacco_logo.png
+          base64 -D -i appsacco-member-v2/logo.b64 -o /tmp/appsacco_ios/assets/app_sacco_logo.png
 
       - name: Get packages
         working-directory: /tmp/appsacco_ios
