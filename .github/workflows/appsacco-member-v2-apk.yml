@@ -30,6 +30,8 @@ jobs:
           cp appsacco-member-v2/pubspec.yaml /tmp/appsacco_member_v2/pubspec.yaml
           cp appsacco-member-v2/analysis_options.yaml /tmp/appsacco_member_v2/analysis_options.yaml
           cp appsacco-member-v2/main.dart /tmp/appsacco_member_v2/lib/main.dart
+          python3 appsacco-member-v2/native_menu_patch.py /tmp/appsacco_member_v2/lib/main.dart
+          sed -i 's/version: 1.1.0+2/version: 1.1.1+3/' /tmp/appsacco_member_v2/pubspec.yaml
           mkdir -p /tmp/appsacco_member_v2/assets
           base64 --decode appsacco-member-v2/logo.b64 > /tmp/appsacco_member_v2/assets/app_sacco_logo.png
 
@@ -46,7 +48,6 @@ jobs:
           p.write_text(s)
           PY
 
-          # Keep package support compatible with modern Android while allowing broad SACCO-device coverage.
           python3 - <<'PY'
           from pathlib import Path
           p = Path('/tmp/appsacco_member_v2/android/app/build.gradle.kts')
@@ -78,13 +79,13 @@ jobs:
 
       - name: Prepare artifact
         run: |
-          cp /tmp/appsacco_member_v2/build/app/outputs/flutter-apk/app-release.apk APP_SACCO_Member_v1.1.0.apk
-          sha256sum APP_SACCO_Member_v1.1.0.apk
-          ls -lh APP_SACCO_Member_v1.1.0.apk
+          cp /tmp/appsacco_member_v2/build/app/outputs/flutter-apk/app-release.apk APP_SACCO_Member_v1.1.1.apk
+          sha256sum APP_SACCO_Member_v1.1.1.apk
+          ls -lh APP_SACCO_Member_v1.1.1.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: APP_SACCO_MEMBER_V2_APK
-          path: APP_SACCO_Member_v1.1.0.apk
+          name: APP_SACCO_MEMBER_V1_1_1_APK
+          path: APP_SACCO_Member_v1.1.1.apk
           retention-days: 7
