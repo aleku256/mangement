@@ -5,7 +5,6 @@ on:
     paths:
       - 'appsacco-ios-v1-1-1/**'
       - 'appsacco-member-v2/pubspec.yaml'
-      - 'appsacco-member-v2/logo.b64'
       - '.github/workflows/appsacco-ios-v1-1-1.yml'
 
 jobs:
@@ -33,7 +32,7 @@ jobs:
           cp appsacco-member-v2/analysis_options.yaml /tmp/appsacco_ios/analysis_options.yaml
           cp appsacco-ios-v1-1-1/main.dart /tmp/appsacco_ios/lib/main.dart
           mkdir -p /tmp/appsacco_ios/assets
-          base64 -D -i appsacco-member-v2/logo.b64 -o /tmp/appsacco_ios/assets/app_sacco_logo.png
+          base64 -D -i appsacco-ios-v1-1-1/logo.b64 -o /tmp/appsacco_ios/assets/app_sacco_logo.png
 
       - name: Get packages
         working-directory: /tmp/appsacco_ios
@@ -92,6 +91,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
+          rm -rf /tmp/appsacco_out
           mkdir -p /tmp/appsacco_out/Payload
           cp -R /tmp/appsacco_ios/build/ios/iphoneos/Runner.app /tmp/appsacco_out/Payload/APP_SACCO.app
           cd /tmp/appsacco_out
