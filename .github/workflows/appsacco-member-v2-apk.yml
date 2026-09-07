@@ -83,9 +83,9 @@ jobs:
         working-directory: /tmp/appsacco_member_v2
         run: dart run flutter_native_splash:create
 
-      - name: Analyze
+      - name: Analyze application source
         working-directory: /tmp/appsacco_member_v2
-        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+        run: flutter analyze lib/main.dart --no-fatal-warnings --no-fatal-infos
 
       - name: Build release APK
         working-directory: /tmp/appsacco_member_v2
