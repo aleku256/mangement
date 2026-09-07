@@ -1,0 +1,123 @@
+name: Build APP SACCO iOS v1.1.1
+
+on:
+  pull_request:
+    paths:
+      - 'appsacco-ios-v1-1-1/**'
+      - 'appsacco-member-v2/pubspec.yaml'
+      - 'appsacco-member-v2/logo.b64'
+      - '.github/workflows/appsacco-ios-v1-1-1.yml'
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create iOS project
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf /tmp/appsacco_ios
+          flutter create --platforms=android,ios --org co.ellnoo --project-name app_sacco_mobile /tmp/appsacco_ios
+          cp appsacco-member-v2/pubspec.yaml /tmp/appsacco_ios/pubspec.yaml
+          cp appsacco-member-v2/analysis_options.yaml /tmp/appsacco_ios/analysis_options.yaml
+          cp appsacco-ios-v1-1-1/main.dart /tmp/appsacco_ios/lib/main.dart
+          mkdir -p /tmp/appsacco_ios/assets
+          base64 --decode appsacco-member-v2/logo.b64 > /tmp/appsacco_ios/assets/app_sacco_logo.png
+
+      - name: Get packages
+        working-directory: /tmp/appsacco_ios
+        run: flutter pub get
+
+      - name: Generate APP SACCO icons
+        working-directory: /tmp/appsacco_ios
+        run: dart run flutter_launcher_icons
+
+      - name: Generate APP SACCO splash
+        working-directory: /tmp/appsacco_ios
+        run: dart run flutter_native_splash:create
+
+      - name: Configure iPhone permissions and branding
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import plistlib
+          from pathlib import Path
+          p = Path('/tmp/appsacco_ios/ios/Runner/Info.plist')
+          with p.open('rb') as f:
+              d = plistlib.load(f)
+          d['CFBundleDisplayName'] = 'APP SACCO'
+          d['CFBundleName'] = 'APP SACCO'
+          d['NSCameraUsageDescription'] = 'APP SACCO uses the camera when you choose to capture KYC or account documents.'
+          d['NSPhotoLibraryUsageDescription'] = 'APP SACCO uses your photo library when you choose to upload KYC or account documents.'
+          d['NSPhotoLibraryAddUsageDescription'] = 'APP SACCO can save documents or receipts to your photo library when you choose.'
+          d['NSLocationWhenInUseUsageDescription'] = 'APP SACCO uses your location only for features that require location verification.'
+          d['NSMicrophoneUsageDescription'] = 'APP SACCO may use the microphone when you choose to capture media for supported account features.'
+          d['UISupportedInterfaceOrientations'] = ['UIInterfaceOrientationPortrait']
+          d['UISupportedInterfaceOrientations~ipad'] = ['UIInterfaceOrientationPortrait', 'UIInterfaceOrientationPortraitUpsideDown']
+          with p.open('wb') as f:
+              plistlib.dump(d, f, sort_keys=False)
+          PY
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('/tmp/appsacco_ios/ios/Runner.xcodeproj/project.pbxproj')
+          s = p.read_text()
+          s = re.sub(r'PRODUCT_BUNDLE_IDENTIFIER = [^;]+;', 'PRODUCT_BUNDLE_IDENTIFIER = co.ellnoo.appsacco;', s)
+          s = re.sub(r'IPHONEOS_DEPLOYMENT_TARGET = [^;]+;', 'IPHONEOS_DEPLOYMENT_TARGET = 13.0;', s)
+          p.write_text(s)
+          PY
+
+      - name: Analyze
+        working-directory: /tmp/appsacco_ios
+        run: flutter analyze
+        continue-on-error: true
+
+      - name: Build unsigned iPhone release
+        working-directory: /tmp/appsacco_ios
+        run: flutter build ios --release --no-codesign
+
+      - name: Prepare unsigned IPA and signing package
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/appsacco_out/Payload
+          cp -R /tmp/appsacco_ios/build/ios/iphoneos/Runner.app /tmp/appsacco_out/Payload/APP_SACCO.app
+          cd /tmp/appsacco_out
+          zip -qry APP_SACCO_iOS_v1.1.1_UNSIGNED.ipa Payload
+          cat > APP_SACCO_iOS_SIGNING_README.txt <<'EOF'
+          APP SACCO iOS v1.1.1
+          Bundle ID: co.ellnoo.appsacco
+          Portal: https://ellnoo.com/member-app
+
+          This build is compiled for real iPhone devices but is intentionally unsigned.
+          Apple requires signing with an Apple Developer account before installation on an iPhone or upload to TestFlight/App Store.
+
+          Signing/TestFlight next step:
+          1. Open the Flutter ios/Runner.xcworkspace project on a Mac with Xcode.
+          2. Select your Apple Developer Team under Signing & Capabilities.
+          3. Keep bundle ID co.ellnoo.appsacco (or change it to the App Store ID you register).
+          4. Archive the app and upload it to App Store Connect/TestFlight.
+          EOF
+          shasum -a 256 APP_SACCO_iOS_v1.1.1_UNSIGNED.ipa
+          ls -lh APP_SACCO_iOS_v1.1.1_UNSIGNED.ipa
+
+      - name: Upload iOS build
+        uses: actions/upload-artifact@v4
+        with:
+          name: APP_SACCO_IOS_V1_1_1
+          path: |
+            /tmp/appsacco_out/APP_SACCO_iOS_v1.1.1_UNSIGNED.ipa
+            /tmp/appsacco_out/APP_SACCO_iOS_SIGNING_README.txt
+          retention-days: 7
