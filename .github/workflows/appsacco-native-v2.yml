@@ -1,0 +1,95 @@
+name: Build APP SACCO Native v2 APK
+
+on:
+  pull_request:
+    paths:
+      - 'appsacco-native-v2/**'
+      - '.github/workflows/appsacco-native-v2.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create native project
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf /tmp/appsacco_native
+          flutter create --platforms=android --org co.ellnoo --project-name app_sacco_mobile /tmp/appsacco_native
+          base64 -d appsacco-native-v2/source.tar.gz.b64 > /tmp/appsacco_source.tar.gz
+          tar -xzf /tmp/appsacco_source.tar.gz -C /tmp/appsacco_native
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/appsacco_native/android/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          marker='<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+          if 'android.permission.INTERNET' not in s:
+              s=s.replace(marker, marker+'\n    <uses-permission android:name="android.permission.INTERNET" />')
+          s=s.replace('android:label="app_sacco_mobile"','android:label="APP SACCO"')
+          s=s.replace('android:name=".MainActivity"','android:name=".MainActivity"\n            android:screenOrientation="portrait"')
+          p.write_text(s)
+          PY
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/appsacco_native/android/app/build.gradle.kts')
+          s=p.read_text().replace('minSdk = flutter.minSdkVersion','minSdk = 23')
+          p.write_text(s)
+          PY
+
+          grep -q "https://ellnoo.com/appsacco-api/v1" /tmp/appsacco_native/lib/main.dart
+          grep -q "Printing.sharePdf" /tmp/appsacco_native/lib/main.dart
+          grep -q "class MorePage" /tmp/appsacco_native/lib/main.dart
+
+      - name: Get packages
+        working-directory: /tmp/appsacco_native
+        run: flutter pub get
+
+      - name: Format
+        working-directory: /tmp/appsacco_native
+        run: dart format lib/main.dart
+
+      - name: Generate launcher icon
+        working-directory: /tmp/appsacco_native
+        run: dart run flutter_launcher_icons
+
+      - name: Generate splash
+        working-directory: /tmp/appsacco_native
+        run: dart run flutter_native_splash:create
+
+      - name: Analyze
+        working-directory: /tmp/appsacco_native
+        run: flutter analyze lib/main.dart --no-fatal-warnings --no-fatal-infos
+
+      - name: Build release APK
+        working-directory: /tmp/appsacco_native
+        run: flutter build apk --release
+
+      - name: Package APK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp /tmp/appsacco_native/build/app/outputs/flutter-apk/app-release.apk APP_SACCO_NATIVE_v2.0.0.apk
+          sha256sum APP_SACCO_NATIVE_v2.0.0.apk > APP_SACCO_NATIVE_v2.0.0.sha256.txt
+          ls -lh APP_SACCO_NATIVE_v2.0.0.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: APP_SACCO_NATIVE_V2_APK
+          path: |
+            APP_SACCO_NATIVE_v2.0.0.apk
+            APP_SACCO_NATIVE_v2.0.0.sha256.txt
+          retention-days: 7
