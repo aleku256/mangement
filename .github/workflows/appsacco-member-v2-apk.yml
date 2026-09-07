@@ -29,7 +29,15 @@ jobs:
           flutter create --platforms=android --org co.ellnoo --project-name app_sacco_mobile /tmp/appsacco_member_v2
           cp appsacco-member-v2/pubspec.yaml /tmp/appsacco_member_v2/pubspec.yaml
           cp appsacco-member-v2/analysis_options.yaml /tmp/appsacco_member_v2/analysis_options.yaml
-          cp appsacco-member-v2/main.dart /tmp/appsacco_member_v2/lib/main.dart
+
+          python3 - <<'PY'
+          import base64, gzip
+          from pathlib import Path
+          encoded = Path('appsacco-member-v2/main_v120.dart.gz.b64').read_text().strip()
+          source = gzip.decompress(base64.b64decode(encoded))
+          Path('/tmp/appsacco_member_v2/lib/main.dart').write_bytes(source)
+          PY
+
           mkdir -p /tmp/appsacco_member_v2/assets
 
           # Use the same APP SACCO seal used by the live member portal.
@@ -52,14 +60,23 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           p = Path('/tmp/appsacco_member_v2/android/app/build.gradle.kts')
-          s = p.read_text()
-          s = s.replace('minSdk = flutter.minSdkVersion', 'minSdk = 23')
+          s = p.read_text().replace('minSdk = flutter.minSdkVersion', 'minSdk = 23')
           p.write_text(s)
           PY
+
+          grep -q "AppSaccoDownloads" /tmp/appsacco_member_v2/lib/main.dart
+          if grep -q "FloatingActionButton" /tmp/appsacco_member_v2/lib/main.dart; then
+            echo 'Unexpected floating native menu found in v1.2.0' >&2
+            exit 1
+          fi
 
       - name: Get packages
         working-directory: /tmp/appsacco_member_v2
         run: flutter pub get
+
+      - name: Format source
+        working-directory: /tmp/appsacco_member_v2
+        run: dart format lib/main.dart
 
       - name: Generate launcher icon
         working-directory: /tmp/appsacco_member_v2
@@ -69,24 +86,29 @@ jobs:
         working-directory: /tmp/appsacco_member_v2
         run: dart run flutter_native_splash:create
 
-      - name: Analyze
+      - name: Analyze application source
         working-directory: /tmp/appsacco_member_v2
-        run: flutter analyze
-        continue-on-error: true
+        run: flutter analyze lib/main.dart --no-fatal-warnings --no-fatal-infos
 
       - name: Build release APK
         working-directory: /tmp/appsacco_member_v2
         run: flutter build apk --release
 
-      - name: Prepare artifact
+      - name: Verify release APK
+        shell: bash
         run: |
-          cp /tmp/appsacco_member_v2/build/app/outputs/flutter-apk/app-release.apk APP_SACCO_Member_v1.1.0.apk
-          sha256sum APP_SACCO_Member_v1.1.0.apk
-          ls -lh APP_SACCO_Member_v1.1.0.apk
+          set -euxo pipefail
+          test -s /tmp/appsacco_member_v2/build/app/outputs/flutter-apk/app-release.apk
+          cp /tmp/appsacco_member_v2/build/app/outputs/flutter-apk/app-release.apk APP_SACCO_Member_v1.2.0.apk
+          sha256sum APP_SACCO_Member_v1.2.0.apk > APP_SACCO_Member_v1.2.0.sha256.txt
+          cat APP_SACCO_Member_v1.2.0.sha256.txt
+          ls -lh APP_SACCO_Member_v1.2.0.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: APP_SACCO_MEMBER_V2_APK
-          path: APP_SACCO_Member_v1.1.0.apk
+          name: APP_SACCO_MEMBER_V1_2_0_APK
+          path: |
+            APP_SACCO_Member_v1.2.0.apk
+            APP_SACCO_Member_v1.2.0.sha256.txt
           retention-days: 7
