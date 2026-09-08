@@ -3,7 +3,7 @@ from pathlib import Path
 p = Path('/tmp/appsacco_native/lib/main.dart')
 s = p.read_text()
 start = s.index('class NotificationsPage extends StatefulWidget')
-end = s.index('class StaffChatPage extends StatefulWidget', start)
+end = s.index('class WithdrawalsPage extends StatefulWidget', start)
 
 replacement = r'''class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key, required this.session});
