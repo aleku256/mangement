@@ -40,6 +40,7 @@ jobs:
             > /tmp/patch_v21.py.gz.b64
           base64 -d /tmp/patch_v21.py.gz.b64 | gzip -d > /tmp/patch_v21.py
           python3 /tmp/patch_v21.py
+          python3 appsacco-native-v2/fix_v21_syntax.py
 
           # Current stable Flutter analyzer compatibility.
           sed -i 's/const ListView(/ListView(/g' /tmp/appsacco_native/lib/main.dart
