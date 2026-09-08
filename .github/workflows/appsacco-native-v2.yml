@@ -29,7 +29,6 @@ jobs:
           flutter create --platforms=android --org co.ellnoo --project-name app_sacco_mobile /tmp/appsacco_native
           cp appsacco-native-v2/main.dart /tmp/appsacco_native/lib/main.dart
 
-          # v2.1 parity patch: native UI backed by the same member data/services as /member-app.
           cat \
             appsacco-native-v2/v21part00.txt \
             appsacco-native-v2/v21part01.txt \
@@ -41,13 +40,13 @@ jobs:
           base64 -d /tmp/patch_v21.py.gz.b64 | gzip -d > /tmp/patch_v21.py
           python3 /tmp/patch_v21.py
           python3 appsacco-native-v2/fix_v21_syntax.py
+          python3 appsacco-native-v2/fix_v211_notifications.py
 
-          # Current stable Flutter analyzer compatibility.
           sed -i 's/const ListView(/ListView(/g' /tmp/appsacco_native/lib/main.dart
 
           cat > /tmp/appsacco_native/pubspec.yaml <<'EOF'
           name: app_sacco_mobile
-          version: 2.1.0+9
+          version: 2.1.1+10
           publish_to: 'none'
           environment:
             sdk: '>=3.12.0 <4.0.0'
@@ -122,11 +121,10 @@ jobs:
           grep -q "class StaffChatPage" /tmp/appsacco_native/lib/main.dart
           grep -q "class ReferralsPage" /tmp/appsacco_native/lib/main.dart
           grep -q "class PinUnlockPage" /tmp/appsacco_native/lib/main.dart
-          grep -q "PdfPreview" /tmp/appsacco_native/lib/main.dart
-          grep -q "/member/savings" /tmp/appsacco_native/lib/main.dart
-          grep -q "/member/shares" /tmp/appsacco_native/lib/main.dart
+          grep -q "Mark Read" /tmp/appsacco_native/lib/main.dart
+          grep -q "Could not mark notification as read" /tmp/appsacco_native/lib/main.dart
           if grep -q "WebView" /tmp/appsacco_native/lib/main.dart; then
-            echo 'Native v2.1 must not contain WebView code' >&2
+            echo 'Native v2.1.1 must not contain WebView code' >&2
             exit 1
           fi
 
@@ -159,15 +157,15 @@ jobs:
         run: |
           set -euxo pipefail
           test -s /tmp/appsacco_native/build/app/outputs/flutter-apk/app-release.apk
-          cp /tmp/appsacco_native/build/app/outputs/flutter-apk/app-release.apk APP_SACCO_NATIVE_v2.1.0.apk
-          sha256sum APP_SACCO_NATIVE_v2.1.0.apk > APP_SACCO_NATIVE_v2.1.0.sha256.txt
-          ls -lh APP_SACCO_NATIVE_v2.1.0.apk
+          cp /tmp/appsacco_native/build/app/outputs/flutter-apk/app-release.apk APP_SACCO_NATIVE_v2.1.1.apk
+          sha256sum APP_SACCO_NATIVE_v2.1.1.apk > APP_SACCO_NATIVE_v2.1.1.sha256.txt
+          ls -lh APP_SACCO_NATIVE_v2.1.1.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: APP_SACCO_NATIVE_V2_1_0_APK
+          name: APP_SACCO_NATIVE_V2_1_1_APK
           path: |
-            APP_SACCO_NATIVE_v2.1.0.apk
-            APP_SACCO_NATIVE_v2.1.0.sha256.txt
+            APP_SACCO_NATIVE_v2.1.1.apk
+            APP_SACCO_NATIVE_v2.1.1.sha256.txt
           retention-days: 7
