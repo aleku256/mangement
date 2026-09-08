@@ -29,17 +29,24 @@ jobs:
           flutter create --platforms=android --org co.ellnoo --project-name app_sacco_mobile /tmp/appsacco_native
           cp appsacco-native-v2/main.dart /tmp/appsacco_native/lib/main.dart
 
-          # v2.0.1 native feature/UI patch.
-          base64 -d appsacco-native-v2/patch_v201.py.gz.b64 | gzip -d > /tmp/patch_v201.py
-          python3 /tmp/patch_v201.py
+          # v2.1 parity patch: native UI backed by the same member data/services as /member-app.
+          cat \
+            appsacco-native-v2/v21part00.txt \
+            appsacco-native-v2/v21part01.txt \
+            appsacco-native-v2/v21part02.txt \
+            appsacco-native-v2/v21part03.txt \
+            appsacco-native-v2/v21part04.txt \
+            appsacco-native-v2/v21part05.txt \
+            > /tmp/patch_v21.py.gz.b64
+          base64 -d /tmp/patch_v21.py.gz.b64 | gzip -d > /tmp/patch_v21.py
+          python3 /tmp/patch_v21.py
 
           # Current stable Flutter analyzer compatibility.
           sed -i 's/const ListView(/ListView(/g' /tmp/appsacco_native/lib/main.dart
-          sed -i 's/value: productId,/initialValue: productId,/g' /tmp/appsacco_native/lib/main.dart
 
           cat > /tmp/appsacco_native/pubspec.yaml <<'EOF'
           name: app_sacco_mobile
-          version: 2.0.1+8
+          version: 2.1.0+9
           publish_to: 'none'
           environment:
             sdk: '>=3.12.0 <4.0.0'
@@ -52,6 +59,9 @@ jobs:
             intl: ^0.20.2
             pdf: ^3.11.3
             printing: ^5.14.2
+            path_provider: ^2.1.5
+            share_plus: ^10.1.4
+            url_launcher: ^6.3.1
           dev_dependencies:
             flutter_test:
               sdk: flutter
@@ -103,16 +113,19 @@ jobs:
           PY
 
           grep -q "https://ellnoo.com/appsacco-api/v1" /tmp/appsacco_native/lib/main.dart
-          grep -q "class LoanDetailPage" /tmp/appsacco_native/lib/main.dart
-          grep -q "class KycPage" /tmp/appsacco_native/lib/main.dart
-          grep -q "class CreditReadinessPage" /tmp/appsacco_native/lib/main.dart
-          grep -q "class StaffChatPage" /tmp/appsacco_native/lib/main.dart
+          grep -q "class SharesPage" /tmp/appsacco_native/lib/main.dart
+          grep -q "class ReceiptsPage" /tmp/appsacco_native/lib/main.dart
+          grep -q "class DocumentsPage" /tmp/appsacco_native/lib/main.dart
+          grep -q "class SecurityPage" /tmp/appsacco_native/lib/main.dart
           grep -q "class AiAssistantPage" /tmp/appsacco_native/lib/main.dart
-          grep -q "class PdfActions" /tmp/appsacco_native/lib/main.dart
+          grep -q "class StaffChatPage" /tmp/appsacco_native/lib/main.dart
+          grep -q "class ReferralsPage" /tmp/appsacco_native/lib/main.dart
+          grep -q "class PinUnlockPage" /tmp/appsacco_native/lib/main.dart
           grep -q "PdfPreview" /tmp/appsacco_native/lib/main.dart
-          grep -q "loan\['balance'\]" /tmp/appsacco_native/lib/main.dart
+          grep -q "/member/savings" /tmp/appsacco_native/lib/main.dart
+          grep -q "/member/shares" /tmp/appsacco_native/lib/main.dart
           if grep -q "WebView" /tmp/appsacco_native/lib/main.dart; then
-            echo 'Native v2.0.1 must not contain WebView code' >&2
+            echo 'Native v2.1 must not contain WebView code' >&2
             exit 1
           fi
 
@@ -145,15 +158,15 @@ jobs:
         run: |
           set -euxo pipefail
           test -s /tmp/appsacco_native/build/app/outputs/flutter-apk/app-release.apk
-          cp /tmp/appsacco_native/build/app/outputs/flutter-apk/app-release.apk APP_SACCO_NATIVE_v2.0.1.apk
-          sha256sum APP_SACCO_NATIVE_v2.0.1.apk > APP_SACCO_NATIVE_v2.0.1.sha256.txt
-          ls -lh APP_SACCO_NATIVE_v2.0.1.apk
+          cp /tmp/appsacco_native/build/app/outputs/flutter-apk/app-release.apk APP_SACCO_NATIVE_v2.1.0.apk
+          sha256sum APP_SACCO_NATIVE_v2.1.0.apk > APP_SACCO_NATIVE_v2.1.0.sha256.txt
+          ls -lh APP_SACCO_NATIVE_v2.1.0.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: APP_SACCO_NATIVE_V2_0_1_APK
+          name: APP_SACCO_NATIVE_V2_1_0_APK
           path: |
-            APP_SACCO_NATIVE_v2.0.1.apk
-            APP_SACCO_NATIVE_v2.0.1.sha256.txt
+            APP_SACCO_NATIVE_v2.1.0.apk
+            APP_SACCO_NATIVE_v2.1.0.sha256.txt
           retention-days: 7
