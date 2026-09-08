@@ -18,6 +18,11 @@ for i, line in enumerate(lines):
         line = line.replace("]))));}", "])));}")
     if "title:const Text('My Documents')" in line:
         line = line.replace("]))));}", "])));}")
+
+    # Dart callback bodies require a semicolon after `return Widget(...)`.
+    if i + 1 in (651, 727, 731, 734, 741, 745):
+        line = line.replace("]))})", "]));})")
+
     lines[i] = line
 
 p.write_text('\n'.join(lines) + '\n')
