@@ -1,0 +1,29 @@
+name: APP SACCO v2.1 Generated Source Debug
+
+on:
+  pull_request:
+    paths:
+      - 'appsacco-native-v2/**'
+      - '.github/workflows/appsacco-native-v21-source-debug.yml'
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate patched main.dart
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/appsacco_native/lib
+          cp appsacco-native-v2/main.dart /tmp/appsacco_native/lib/main.dart
+          cat appsacco-native-v2/v21part00.txt appsacco-native-v2/v21part01.txt appsacco-native-v2/v21part02.txt appsacco-native-v2/v21part03.txt appsacco-native-v2/v21part04.txt appsacco-native-v2/v21part05.txt > /tmp/patch_v21.py.gz.b64
+          base64 -d /tmp/patch_v21.py.gz.b64 | gzip -d > /tmp/patch_v21.py
+          python3 /tmp/patch_v21.py
+          cp /tmp/appsacco_native/lib/main.dart generated_v21_main.dart
+      - name: Upload generated source
+        uses: actions/upload-artifact@v4
+        with:
+          name: APP_SACCO_V21_GENERATED_SOURCE
+          path: generated_v21_main.dart
+          retention-days: 2
