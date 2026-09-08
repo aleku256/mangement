@@ -29,9 +29,13 @@ jobs:
           flutter create --platforms=android --org co.ellnoo --project-name app_sacco_mobile /tmp/appsacco_native
           cp appsacco-native-v2/main.dart /tmp/appsacco_native/lib/main.dart
 
+          # Clean analyzer compatibility fixes for current stable Flutter.
+          sed -i 's/const ListView(/ListView(/g' /tmp/appsacco_native/lib/main.dart
+          sed -i 's/value: productId,/initialValue: productId,/g' /tmp/appsacco_native/lib/main.dart
+
           cat > /tmp/appsacco_native/pubspec.yaml <<'EOF'
           name: app_sacco_mobile
-          version: 2.0.0+6
+          version: 2.0.0+7
           publish_to: 'none'
           environment:
             sdk: '>=3.12.0 <4.0.0'
