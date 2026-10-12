@@ -1,0 +1,35 @@
+TIMESOPS PARTNER & COMMISSION v1.0.0
+
+PURPOSE
+Owner-level recurring commission system. Default: 15% lifetime recurring while partner + company assignment remain active.
+
+INSTALL
+1. Back up TimesOps DB and modules.
+2. Import TimesOps_Partner_Commission_v1.0.0_ADD_ONLY_INSTALL.sql.
+3. Run the read-only verification; expect 8 module tables and settings id=1.
+4. Upload the Module Manager ZIP at /owner/modules.
+5. Open /owner/commercial/partner-commission.
+
+PAYMENT RULES
+- Commission is created only from settled payment sources.
+- One settlement_key can create only one commission.
+- Assignment starts_at prevents retroactive commission.
+- Stripe source supported: timesops_stripe_paid_invoices.
+- Compatible saas_payments source is supported when company scoping is unambiguous.
+- Failed/pending payments do not earn commission.
+- Compatible refunded/reversed saas_payments reverse commission.
+- Current Stripe paid-invoice table does not expose refunds; use owner manual reversal if a Stripe refund is not represented by a compatible settlement ledger.
+- Partner portal exposes commercial commission information only; never customer CRM, Housing, HR, files, messages or operational records.
+
+FIRST UAT
+1. Create UAT Sales Partner / referral code UATPARTNER01 / rate 15 / mode lifetime / temporary password >=10 chars.
+2. Assign a DEMO/test company with starts_at = now.
+3. Click Sync settled payments. Historical payments before starts_at must NOT generate commission.
+4. For a future/test settled payment of 12,000, expected commission at 15% = 1,800.
+5. Approve the pending commission.
+6. Record partner payout; commission becomes paid.
+7. Sign into /partner-network/login and verify the partner sees only their commercial commission data.
+8. Optional referral URL: /partner-network/r/UATPARTNER01.
+
+ROLLBACK
+Disable/uninstall module files first. Do not drop the commission ledger/payout tables until exported. No destructive rollback SQL is included.
